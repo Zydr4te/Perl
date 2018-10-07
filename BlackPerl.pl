@@ -2,7 +2,7 @@
 
 ################################
 #
-# A full scale Web Hacking toolkit (Version 0.2.0)
+# A full scale Web Hacking toolkit (Version 0.2.1)
 #
 # I am NOT Responsible for misuse of this tool
 #
@@ -10,6 +10,10 @@
 #
 ################################
 # Version Notes
+#
+#
+# Version 0.2.1:
+# Began work on directory traversal
 #
 # Version 0.2.0:
 #	DNS options have been included. TO BE ADDED: Zone Transfers
@@ -89,7 +93,7 @@ my sub spider {
 	print "Created the file 'links.txt' which holds the results\n";
 
 	sleep(3);
-
+	print "++++++++++++++++++++++++++++\n";
 	print "Press 'ENTER' to continue... ";
 	<STDIN>;
 }
@@ -122,7 +126,24 @@ my sub google_dork {
 
 # Directory Traversal
 my sub directory_traversal {
-	print "IN DEVELOPMENT\n";
+	system('clear');
+
+	my @paths = ( "/etc/passwd", "/etc/shadow", "/etc/hosts");
+
+	print "++++++++++++++++++++++++++++++++++++++\n";
+	print "+        Directory Traversal         +\n";
+	print "++++++++++++++++++++++++++++++++++++++\n";
+	print "+ 1: /etc/passwd                     +\n";
+	print "+ 2: /etc/shadow                     +\n";
+	print "+ 3: /etc/hosts                      +\n";
+	print "++++++++++++++++++++++++++++++++++++++\n";
+	print "+ What directory do you want?:        \n";
+	chomp(my $dt = <STDIN>);
+  print "++++++++++++++++++++++++++++++++++++++\n";
+	print "+ What is the URL your going to?:     \n";
+	chomp(my $url = <STDIN>);
+
+
 }
 
 # File inclusion
