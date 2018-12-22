@@ -2,7 +2,7 @@
 
 ###############
 #
-# Password Extractor tool
+# Cookie replay tool
 #
 ###############
 
