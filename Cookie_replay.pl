@@ -91,37 +91,4 @@ sub admin_bug {
 
 admin_bug();
 
-sub cookie_break {
 
-	my $cookie_jar = HTTP::Cookies->new(
-		file => "$ENV{'HOME'}/cookies.txt",
-		autosave => 1,
-		);
-
-	#$cookie_jar -> get_cookies($bug);
-
-	return $cookie_jar;
-	my $rcvd = "$ENV{'HOME'}/cookies.txt";
-	my @cookies = split /;/, $rcvd;
-
-	
-	foreach my $cookie ( @cookies ) {
-   		my ($key, $val) = split(/=/, $cookie); # splits on the first =.
-   		if (grep ("UserID", @cookies)) {
-	
-   			if( $key eq "UserID" ) {
-      			my $user_id = $val;
-      			print "User ID  = $user_id\n";
-   			}
-   		}
-
-   		if (grep ("Password", @cookies)) {
-   			if($key eq "Password") {
-      			my $password = $val;
-   				print "Password = $password\n";
-   			}
-   		}
-	}
-}
-
-cookie_break();
