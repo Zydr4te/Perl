@@ -2,7 +2,7 @@
 
 ########
 #
-# Automated exploit tool for getting WordPress admin credentials and FTP credentials
+# Automated exploit tool for getting WordPress admin credentials and FTP credentials and eventually... root
 #
 ########
 
