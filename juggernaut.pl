@@ -28,7 +28,7 @@ use Net::DNS;
 system('clear');
 #Static Variables
 my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
-my $conPorts;
+my @oports;
 my $sock;
 my $banner = << 'EOL';
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -74,6 +74,7 @@ foreach my $port (@ports){
         print color('green');
         print "[*] =>\tPort $port is open\n";
         print color('reset');
+        push @oports, $port; #pushing the open port to an array for later use
       }
       else{
         print color('red');
@@ -89,15 +90,13 @@ brute_force();
 #Start subroutine building
 ####
 #Finding admin pages
-
 sub admin_find {
-
- #array of typical admin pages
- print color('yellow');
+  print color('yellow');
  print "++++++++++++++++++++++++++++++++++\n";
  print "[*]Hunting for an admin page\n";
  print "++++++++++++++++++++++++++++++++++\n";
  print color('reset');
+#array of typical admin pages
  my @admins = qw(admin administrator wp-admin wp-login.php);
   if ($host !~ /http:\/\//) {$host = "http://$host";}; #adds http before the target if it is not present
 
@@ -144,14 +143,14 @@ sub brute_force {
         chomp(my $passwd = $_);
         my %form =($username => $user,$passwordname => $passwd);
         #sends a post request to the target using the form hash as a "template" for putting the username and password in the correct spot
-        my $res = $bot->get($target,\%form)->as_string;
+        my $res = $bot->post($target,\%form)->as_string;
         my $req = HTTP::Request->new(POST=>$res);
         if($bot){
           #figured out the issue, will update ASAP, once I get the code correct
           #To do:
           # Add form submission
-          # Add status code checking for status code 304
-          unless ($req =~ /Error/ig) {
+          # Add status code checking for status code 
+          if ($req =~ /Error/ig) {
             print color('red');
             print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
             print color('reset');
