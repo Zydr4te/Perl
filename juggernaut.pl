@@ -229,6 +229,7 @@ sub brute_force {
 
 ####
 #Site mapping
+#looks for Files that use the GET parameter
 #Will work with the SQL Injection... eventually
 sub site_map{
   print color('bold yellow');
@@ -240,15 +241,12 @@ sub site_map{
   my @get; #array for pages that have GET parameters
   my $server = 0; #Used for testing the server type
   $sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => '80' ,Proto => 'tcp', Timeout => 1);
-
-  #Sending a request to the server
-  #Has to be adjusted, causes an error: "Can't call method "send" on an undefined value"
-  $sock->send("HEAD / HTTP/1.1\r\n");
-  $sock->send("\r\n");
-  $sock->send("\r\n");
-  $sock->recv($buffer, 2048);
-
-
+  my $send = "HEAD / HTTP/1.1\r\n";
+#
+#
+# Working on getting the request to send. All attempts have failed so far
+#
+#
   my @buffer = split("\n",$buffer); #split the data in the $buffer variable by newline characters and saves it to an array
 
   foreach (@buffer){
