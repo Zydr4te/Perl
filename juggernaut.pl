@@ -6,6 +6,11 @@
 #
 ########
 
+################Version 1.2###################
+#
+# Now scrapes user names and finds the server software
+#
+
 ################Version 1.1###################
 #
 # Added support for reading user provided lists
@@ -15,8 +20,6 @@
 #
 # Currently works with basic information gathering and basic brute forcing
 #
-
-
 
 ############################
 #Built-in modules
@@ -32,15 +35,12 @@ use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
 use Net::DNS;
+use Net::Ping; #might have a use for this, or not, idk yet
 ###########################
 #External modules (trying to avoid using)
 ###########################
 ####
 system('clear');
-#Static Variables
-my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
-my @oports;
-my @content;
 my $banner = << 'EOL';
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 .___/\          __  .__                  ____.                                                      __    __________._______________________   ___ ___
@@ -50,7 +50,7 @@ my $banner = << 'EOL';
 |___|__|_|  /  |__| |___|  /\___  > \________|____/\___  /\___  / \___  >__|  |___|  (____  /____/ |__|    |______  /___| |____|    \______  /\___|_  /
           \/             \/     \/                /_____//_____/      \/           \/     \/                      \/                       \/       \/
 
-VERSION 1.1
+VERSION 1.2
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 EOL
 #####################################
@@ -89,12 +89,13 @@ port_scanner();
 admin_find();
 version_find();
 user_find();
-site_map();
 #####################################
 #Start subroutine building
 ####
 #Port scanner
 sub port_scanner {
+  my @ports = qw(20 21 22 23 53 67 68 69 80 88 135 139 443 445);
+  my @oports;
   print color('bold yellow');
   print "\n\n++++++++++++++++++++++++++++++\n";
   print "[*]Port scanning $host\n";
@@ -115,8 +116,33 @@ sub port_scanner {
         print color('reset');
     }
   }
-}
 
+  foreach my $ports (@oports) {
+    if ($ports = 80){daemon_find($ports);}
+  }
+}
+####
+#Service Daemon ID
+#some stuff include: lighthttpd, apache2, Nginx
+sub daemon_find{
+  print color('bold yellow');
+  print "++++++++++++++++++++++++++++++++++\n";
+  print "[*]Looking for which daemon this is using\n";
+  print "++++++++++++++++++++++++++++++++++\n";
+  print color('reset');
+  my $oport = shift; #allows for data to be passed to it
+  my $sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => $oport,Proto => 'tcp', Timeout => 1);
+  if ($sock){
+    $sock->print("HEAD / HTTP/1.1\n\n\n\n"); #sends the data to the server
+    while(<$sock>){  #The keeps the loop going while the socket is receiving data
+      my $server = $_;
+      if($_ =~ m/^server:(.*?)/ig){ #filter for the server daemon
+          print color('bold green');
+          print "[*]$_";
+        }
+      }
+    }
+  }
 ####
 #Finding admin pages
 sub admin_find {
@@ -125,7 +151,6 @@ sub admin_find {
  print "[*]Hunting for an admin page\n";
  print "++++++++++++++++++++++++++++++++++\n";
  print color('reset');
-#array of typical admin pages
   if ($host !~ /http:\/\//) {$host = "http://$host";}; #adds http before the target if it is not present
   my $hunt = $host."/wp-login.php/";
 	my $req = HTTP::Request->new(GET=>$hunt); #sends a GET request for the pages
@@ -177,6 +202,7 @@ sub user_find {
 
 ####
 #Version discovery
+#I should comment this at somepoint
 sub version_find {
   print color('bold yellow');
   print "++++++++++++++++++++++++++++++++++\n";
@@ -228,72 +254,12 @@ sub brute_force {
   }
 
 ####
-#Site mapping
-#looks for Files that use the GET parameter
-#Will work with the SQL Injection... eventually
-#Still being debugged
-sub site_map{
-  print color('bold yellow');
-  print "++++++++++++++++++++++++++++++++++\n";
-  print "[*]Looking for pages with potential vulns\n";
-  print "++++++++++++++++++++++++++++++++++\n";
-  print color('reset');
-  my $server = 0; #Used for testing the server type
-  my @buf;
-  my $sock;
-
-  if($sock = IO::Socket::INET->new(PeerAddr => $host,PeerPort => 80 ,Proto => 'tcp', Timeout => 1)){
-    my $buffer; #variable used to temporarily store socket requests
-    $sock->send("HEAD / HTTP/1.1\r\n");
-    $sock->send("\r\n");
-    $sock->send("\r\n");
-    $sock->recv($buffer,2048) || die "Can't connect to $host $!";
-    $sock->close();
-    my @buffer = split("\n",$buffer);
-    push @buf,@buffer;
-
-  }
-  #Program dies around here
-
-  foreach my $buf (@buf){
-    if($_ =~ m/^Server:(.*)/i){
-      print color('bold green');
-      print "[*]Web server is: $1 \n";
-      $server++
-    }
-    else{
-      print color('bold red');
-      print "Unable to find the server type!\n";
-    }
-  }
-
-  if($server) {
-    foreach ("html", "htm", "php", "asp", "aspx") {
-      if(page_find("index"."$_")){
-        print "page: index $_ \n";
-        foreach (@content){
-          print "File: $2 \n" if(m/<a.*href=("|")([^"']+)("|')/);
-        }
-        last;
-      }
-    }
-  }
-
-  sub page_find {
-    my $res = $bot -> get($host."/".$_[0]);
-    if ($res -> is_success && $res -> redirect_ok){
-      @content = split(/\015?\012/,$res->content); #\015 = ^M \012 = ^J
-      return $_[0];
-    }
-    return;
-  }
-}
-
-
+#File mapping
+sub site_map {}
 
 ####
 #SQL Injection
-sub sql{}
+sub sql {}
 
 ####
 #FTP brute forcing
@@ -312,10 +278,10 @@ sub ftp {}
 
 ####
 #FTP CHROOT jail breaking
-sub jail_break{}
+sub jail_break {}
 
 ####
 #Get root
-sub get_root{}
+sub get_root {}
 
 ###############################################
