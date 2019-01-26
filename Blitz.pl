@@ -19,14 +19,13 @@ no warnings 'uninitialized';
 #-- Banner
 my $banner = << 'EOB';
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-  ________       .__
- /  _____/_____  |__|____
-/   \  ___\__  \ |  \__  \
-\    \_\  \/ __ \|  |/ __ \_
- \______  (____  /__(____  /
-        \/     \/        \/
+    __    ___ __
+   / /_  / (_) /_____
+  / __ \/ / / __/_  /
+ / /_/ / / / /_  / /_
+/_.___/_/_/\__/ /___/
 
-Version 0.0.2
+Version 0.0.3
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 EOB
 
@@ -56,29 +55,39 @@ $bot -> agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko
 $bot -> cookie_jar($cookie);
 
 #-----------------------
+#-- Manipulating the inputted url to add HTTP if it is not present and remove a trailing slash
+if ($target !~ /http:\/\//) {$target = "http://$target";}
+$target = $1 if($target =~/(.*)\/$/);
+#-----------------------
 #-- Required variable checking
 if ($brute){
   if($ulist eq '' || $plist eq ''){
     help();
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
     print color('bright_red'),"[*] Provide a list of usernames and passwords\n";
     print color('magenta'),"[*] Press ENTER to quit...";
+    print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
     <STDIN>;
     exit(0);
   }
 }
 
-if ($cms eq ''){
+if (($cms eq '') || ($guess eq '')){
   help();
-  print color('bright_red'),"[*] Provide a CMS\n";
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  print color('bright_red'),"[*] Provide a CMS or select the guess option\n";
   print color('magenta'),"[*] Press ENTER to quit...";
+  print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
   <STDIN>;
   exit(0);
 }
 
 if ($target eq ''){
   help();
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
   print color('bright_red'),"[*] Provide a target\n";
   print color('magenta'),"[*] Press ENTER to quit...";
+  print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
   <STDIN>;
   exit(0);
 }
@@ -94,13 +103,13 @@ sub help {
   print $banner;
   print color('bright_cyan');
   print q(
-  Usage: perl Gaia.pl [options] <arguments>
+  Usage: perl Blitz.pl [options] <arguments>
 
   Example:
 
-  perl Gaia.pl -c wordpress -b -p -u -t target.com -ul users.txt -pl list.txt
+  perl Blitz.pl -c wordpress -b -p -u -t target.com -ul users.txt -pl list.txt
 
-  perl Gaia.pl -cms joomla -brute -ulist users.txt -pl pass.txt
+  perl Blitz.pl -cms joomla -brute -ulist users.txt -pl pass.txt
 
   IMPORTANT: Only supported CMS' are: WordPress, Joomla!, and Drupal. More to come.
 
@@ -145,6 +154,7 @@ sub cms_hunt {
   }
 }
 
+#-- Hunts for the server daemon (Apache, Nginx, etc)
 sub server_find {
   my $sock = IO::Socket::INET->new(PeerAddr => $target, PeerPort => 80, Proto => 'tcp', Timeout => 1);
   if ($sock){
@@ -152,14 +162,63 @@ sub server_find {
     while(<$sock>){
       my $server = $_;
       if($_ =~ m/^server:(.*?)/ig){
-        print color('bold green'), "[*]$_";
+        print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+        print color('bold green'), "[*]$_\n";
+        print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
       }
     }
   }
 }
 
-#-- subroutine building (WORDPRESS)
+#-- Server status code finding
+sub status_code {
+  my $code = $bot->get($target);
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  print color('bold green'), "[*] Server status ", $code->status_line, "\n", color('reset');
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+}
 
-#-- subroutine building (JOOMLA!)
+#-- Brute forcing subroutines
+sub admin_find {
+  #-- Default admin pages
+  my $wp_admin = "/wp-login.php";
+  my $joomla_admin = "/admininstrator/index.php";
+  my $drupal_admin = "/user/login";
 
-#-- subroutine building (DRUPAL)
+  my $admin;
+  if ($cms =~ /wordpress/gi){
+    $admin = $bot->get($target.$wp_admin);
+    if ($bot->is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+      return $admin;
+    }
+    else {
+      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+      }
+    }
+  elsif($cms =~ /joomla|joomla!/gi) {
+    $admin = $bot->get($target.$joomla_admin);
+    if ($bot->is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+      return $admin;
+    }
+    else {
+      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+      }
+    }
+  elsif($cms =~ /joomla|joomla!/gi) {
+    $admin = $bot->get($target.$drupal_admin);
+    if ($bot->is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+      return $admin;
+    }
+    else {
+      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+    }
+  }
+}
+#-- END brute force subroutines
+
+#-- Plugin enumeration subroutines
+
+#-- END plugin enumeration subroutines
