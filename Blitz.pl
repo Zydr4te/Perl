@@ -11,11 +11,12 @@ use HTTP::Request::Common;
 use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
-use Getopt::Long;
+use Getopt::Long qw(:config bundling);
 #-- Turns off warnings for uninitialized values
 no warnings 'uninitialized';
 #-----------------------
-
+system('clear');
+#-----------------------
 #-- Banner
 my $banner = << 'EOB';
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -25,7 +26,6 @@ my $banner = << 'EOB';
  / /_/ / / / /_  / /_
 /_.___/_/_/\__/ /___/
 
-Version 0.0.3
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 EOB
 
@@ -60,6 +60,28 @@ if ($target !~ /http:\/\//) {$target = "http://$target";}
 $target = $1 if($target =~/(.*)\/$/);
 #-----------------------
 #-- Required variable checking
+if ($help ne ''){
+  help();
+  print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+  print color('bright_magenta'), "[*] View changelog? (y/n): ";
+  chomp(my $chng = <STDIN>);
+  if ($chng =~ /y/i){
+    changelog();
+    print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+    print color('magenta'),"[*] Press ENTER to quit...";
+    print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+    <STDIN>;
+    exit(0);
+  }
+  else {
+    print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+    print color('magenta'),"[*] Press ENTER to quit...";
+    print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+    <STDIN>;
+    exit(0);
+  }
+}
+
 if ($brute){
   if($ulist eq '' || $plist eq ''){
     help();
@@ -72,15 +94,7 @@ if ($brute){
   }
 }
 
-if (($cms eq '') || ($guess eq '')){
-  help();
-  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-  print color('bright_red'),"[*] Provide a CMS or select the guess option\n";
-  print color('magenta'),"[*] Press ENTER to quit...";
-  print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
-  <STDIN>;
-  exit(0);
-}
+
 
 if ($target eq ''){
   help();
@@ -91,12 +105,40 @@ if ($target eq ''){
   <STDIN>;
   exit(0);
 }
+
+if (($cms eq '') && ($guess eq '')){
+  help();
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  print color('bright_red'),"[*] Provide a CMS or select the guess option\n";
+  print color('magenta'),"[*] Press ENTER to quit...";
+  print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
+  <STDIN>;
+  exit(0);
+}
 #-- END of variable check
 #-----------------------
+#-- Changelog
+sub changelog {
+print q(
 
-#-- Running the help menu
-#-- @ARGV is the array data is stored, if it's empty, or the help variable is active, run the help menu
-if (@ARGV == 0 || $help){help();}
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+CURRENT VERSION: 0.0.5
+Changes made:
+
+Version 0.0.5 - Bug fixes
+
+Version 0.0.4 - Bug fixes and additional minor features added
+
+Version 0.0.3 - Added the functionality for CMS finger printing and admin page finding
+
+Version 0.0.2 - Basic functionality added
+
+Version 0.0.1 - Basic structure and design
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+);
+
+}
+
 #-- Building the help menu
 sub help {
   print color('bright_white');
@@ -125,12 +167,13 @@ sub help {
   s|server    =>  Attempts to find the server daemon
   ul|ulist    =>  Provide a list of usernames (required if -b is in use)
   pl|plist    =>  Provide a list of passwords (required if -b is in use)
+  change      =>  Print the Changelog
 
 );
   print color('reset');
 }
 
-#-- subroutine building (GENERAL)
+#-- subroutine building
 sub cms_hunt {
   #-- Runs a GET request to get the page content for filtering
   my $cms = $bot->get($target)->content;
@@ -217,6 +260,25 @@ sub admin_find {
     }
   }
 }
+
+#-- Scrapes the username from the author permalink
+sub wp_user {
+  $user = $target."/?author=1";
+  my $req = HTTP::Request ->new(GET=>$user);
+  my $userhunt = $bot->request($req)->content;
+  if($userhunt =~/author\/(.*?)\//){
+    my $victim = $1;
+    return $victim;
+  }
+}
+
+#-- Narrowed brute forcing subroutines
+sub wp_brute {}
+
+sub joomla_brute {}
+
+sub drupal_brute {}
+
 #-- END brute force subroutines
 
 #-- Plugin enumeration subroutines
