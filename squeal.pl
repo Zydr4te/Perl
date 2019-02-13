@@ -5,6 +5,7 @@
 use strict;
 use warnings;
 use HTTP::Cookies;
+use HTML::Parse;
 use LWP::UserAgent;
 use LWP::Protocol::https;
 use Term::ANSIColor;
@@ -58,8 +59,9 @@ if (scalar @get > 0) {
 else {
 	print color('bright_red');
 	print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
-	print "No valid parameters found!!\n";
+	print "No valid files found!!\nTrying URL mangling\n";
 	print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+	sql_url_test();
 }
 #---------------------#
 #-- Finding content
@@ -81,18 +83,37 @@ sub mangle_url {
 		my $url = $_;
 		$url =~ s/(\?id[^=]+=) [0-9a-z_]/$1%27/;
 		print color
-		sql_test($url);
+		sql_file_test($url);
 	}
 }
 
 #-- Finding a vulnerability
-sub sql_test {
+sub sql_file_test {
 	my $test = shift;
 	my $res = $bot -> get($target) -> content;
 	if ($res =~ m/error.*syntax.*sql/i) {
 		print color('bright_green');
 		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
 		print "SQLi confirmed at $res\n";
+		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+	}
+}
+
+sub sql_url_test {
+	my $query = "'1'&Submit=Submit#"; #-- Query that should produce an error
+	my $test = $target."/?id=".$query;
+	my $req = HTTP::Request->new(GET=>$test);
+	my $res = $bot -> request($req) -> content;
+	if ($res =~ m/[error|sql]/ig) {
+		print color('bright_green');
+		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+		print "SQLi confirmed at $test\n";
+		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+	}
+	else{
+		print color('bright_red');
+		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+		print "No SQLi at $test\n";
 		print "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
 	}
 }
