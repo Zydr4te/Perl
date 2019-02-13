@@ -14,10 +14,11 @@ my ($help, $target, $variable);
 GetOptions(
 "h|help" 		=> \$help,
 "t|target=s"		=> \$target,
-"v|variable=s"	=> \$variable,
+"v|variable=s"		=> \$variable,
 );
 
 unless ($target && $variable){help();}
+
 
 my $cookie = new HTTP::Cookies(ignore_discard => 1);
 my $bot = LWP::UserAgent->new(keep_alive => 1);
@@ -52,7 +53,8 @@ sub sql_test {
 
 sub help {
 	print q(
-		USAGE: perl LittlePig.pl -t [domain] -v [variable]
+	USAGE: perl LittlePig.pl -t [domain] -v [variable]
 
 );
+exit;
 }
