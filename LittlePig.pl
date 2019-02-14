@@ -27,7 +27,7 @@ $bot -> agent("Mozilla/5.0 (Windows; U; Windows NT 6.1 en-US; rv:1.9.2.18) Gecko
 $bot -> cookie_jar($cookie);
 #---------------------#
 #-- Manipulating the inputted url to add HTTP if it is not present and remove a trailing slash
-if ($target !~ /http:\/\//) {$target = "http://$target";}
+if ($target !~ /[http|https]\:\/\//) {$target = "http://$target";}
 $target = $1 if($target =~/(.*)\/$/);
 #-----------------------#
 sql_test($variable);
